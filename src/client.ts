@@ -13,24 +13,36 @@ class NitroDB {
     private readonly filePath: string;
     private data: Database;
     private readonly schema: Schema;
+    private logger: winston.Logger;
 
     constructor(filePath: string, schema: Schema = {}) {
         this.filePath = filePath;
         this.schema = schema;
         this.data = this.loadData();
         this.validateSchema();
-    }
 
+        this.logger = winston.createLogger({
+            level: 'error',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.json()
+            ),
+            transports: [
+                new winston.transports.Console(),
+                new winston.transports.File({ filename: 'error.log', level: 'error' })
+            ]
+        });
+    }
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');
             return JSON.parse(data);
         } catch (error) {
             if (error.code === 'ENOENT') {
-                // If file does not exist, create a new one
                 this.createEmptyFile();
                 return {};
             } else {
+                this.logger.error(`Error loading data from file: ${error}`);
                 throw new Error(`Error loading data from file: ${error}`);
             }
         }
@@ -99,8 +111,13 @@ class NitroDB {
     }
 
     private saveData(): void {
-        const dataToWrite = JSON.stringify(this.data, null, 2);
-        fs.writeFileSync(this.filePath, dataToWrite, 'utf8');
+        try {
+            const dataToWrite = JSON.stringify(this.data, null, 2);
+            fs.writeFileSync(this.filePath, dataToWrite, 'utf8');
+        } catch (error) {
+            this.logger.error(`Error saving data to file: ${error}`);
+            throw new Error(`Error saving data to file: ${error}`);
+        }
     }
 }
-
+export default NitroDB;

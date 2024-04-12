@@ -19,8 +19,11 @@ class NitroDB extends EventEmitter {
     private readonly encryptionKey: string; // Add encryption key
     private cache: Map<string, any>; // Cache for frequently accessed data
 
-    constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
+       constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
+        if (!encryptionKey || typeof encryptionKey !== 'string') {
+            throw new Error('Encryption key must be a non-empty string');
+        }
         this.filePath = filePath;
         this.schema = schema;
         this.version = 1; // Initial version
@@ -40,6 +43,7 @@ class NitroDB extends EventEmitter {
                 new winston.transports.File({ filename: 'error.log', level: 'error' })
             ]
         });
+         
     }
 
     // Event System
@@ -213,14 +217,13 @@ class NitroDB extends EventEmitter {
         encryptedData += cipher.final('hex');
         return encryptedData;
     }
-
+    
     private decryptData(data: string): string {
         const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
         let decryptedData = decipher.update(data, 'hex', 'utf8');
         decryptedData += decipher.final('utf8');
         return decryptedData;
     }
-
     // Versioning feature
     public getVersion(): number {
         return this.version;
@@ -284,14 +287,12 @@ class NitroDB extends EventEmitter {
         this.cache.clear();
     }
 
-    // Data Compression
+      // Data Compression
     public compressData(data: any): Buffer {
-        // Implement data compression logic here
         return Buffer.from(JSON.stringify(data), 'utf8');
     }
 
     public decompressData(compressedData: Buffer): any {
-        // Implement data decompression logic here
         return JSON.parse(compressedData.toString('utf8'));
     }
 }

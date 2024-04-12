@@ -3,6 +3,7 @@ import * as path from 'path';
 import winston from 'winston';
 import EventEmitter from 'events';
 import { Database, Schema } from './interface.js';
+import logger from './logger.js';
 import crypto from 'crypto';
 
 interface VersionedData {
@@ -15,7 +16,6 @@ class NitroDB extends EventEmitter {
     private version: number;
     private data: Database;
     private readonly schema: Schema;
-    private logger: winston.Logger;
     private readonly encryptionKey: string; // Add encryption key
     private cache: Map<string, any>; // Cache for frequently accessed data
 
@@ -32,19 +32,7 @@ class NitroDB extends EventEmitter {
         this.encryptionKey = encryptionKey;
         this.cache = new Map();
         this.archiveData();
-
-        this.logger = winston.createLogger({
-            level: 'error',
-            format: winston.format.combine(
-                winston.format.timestamp(),
-                winston.format.json()
-            ),
-            transports: [
-                new winston.transports.Console(),
-                new winston.transports.File({ filename: 'error.log', level: 'error' })
-            ]
-        });
-         
+        this.logger = logger;
     }
 
     // Event System

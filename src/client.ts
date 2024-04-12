@@ -17,6 +17,7 @@ class NitroDB extends EventEmitter {
     private readonly schema: Schema;
     private logger: winston.Logger;
     private readonly encryptionKey: string; // Add encryption key
+    private cache: Map<string, any>; // Cache for frequently accessed data
 
     constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
@@ -26,6 +27,7 @@ class NitroDB extends EventEmitter {
         this.data = this.loadData();
         this.validateSchema();
         this.encryptionKey = encryptionKey;
+        this.cache = new Map();
 
         this.logger = winston.createLogger({
             level: 'error',
@@ -115,12 +117,12 @@ class NitroDB extends EventEmitter {
     }
 
     public set(key: string, value: any): void {
-    const oldValue = this.data[key];
-    this.emit('beforeSet', key, value);
-    this.data[key] = value;
-    this.emit('afterSet', key, value, oldValue);
-    this.saveData();
-}
+        const oldValue = this.data[key];
+        this.emit('beforeSet', key, value);
+        this.data[key] = value;
+        this.emit('afterSet', key, value, oldValue);
+        this.saveData();
+    }
 
     public push(key: string, value: any): void {
         if (!Array.isArray(this.data[key])) {
@@ -231,12 +233,12 @@ class NitroDB extends EventEmitter {
 
     // Custom Hooks
     public beforeSet(callback: (key: string, value: any) => void): void {
-    this.on('beforeSet', callback);
-}
+        this.on('beforeSet', callback);
+    }
 
-public afterSet(callback: (key: string, value: any) => void): void {
-    this.on('afterSet', callback);
-}
+    public afterSet(callback: (key: string, value: any) => void): void {
+        this.on('afterSet', callback);
+    }
 
     // Query Optimization
     public optimizeQuery(criteria: (data: any) => boolean): any[] {
@@ -245,6 +247,52 @@ public afterSet(callback: (key: string, value: any) => void): void {
         const results: any[] = [];
         this.traverse(this.data, results, criteria);
         return results;
+    }
+
+    // Batch Operations
+    public batchSet(data: { [key: string]: any }): void {
+        // Implement batch set operation to set multiple key-value pairs at once
+        for (const key in data) {
+            this.set(key, data[key]);
+        }
+    }
+
+    public batchPush(data: { [key: string]: any[] }): void {
+        // Implement batch push operation to push multiple values to array fields
+        for (const key in data) {
+            if (!Array.isArray(this.data[key])) {
+                this.data[key] = [];
+            }
+            this.data[key].push(...data[key]);
+        }
+        this.saveData();
+    }
+
+    // Cache Integration
+    public getFromCache(key: string): any {
+        // Retrieve data from cache if available
+        return this.cache.get(key);
+    }
+
+    public addToCache(key: string, value: any): void {
+        // Add data to cache
+        this.cache.set(key, value);
+    }
+
+    public clearCache(): void {
+        // Clear the cache
+        this.cache.clear();
+    }
+
+    // Data Compression
+    public compressData(data: any): Buffer {
+        // Implement data compression logic here
+        return Buffer.from(JSON.stringify(data), 'utf8');
+    }
+
+    public decompressData(compressedData: Buffer): any {
+        // Implement data decompression logic here
+        return JSON.parse(compressedData.toString('utf8'));
     }
 }
 

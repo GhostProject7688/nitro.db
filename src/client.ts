@@ -5,13 +5,20 @@ interface Database {
     [key: string]: any;
 }
 
+interface Schema {
+    [key: string]: any;
+}
+
 class NitroDB {
     private readonly filePath: string;
     private data: Database;
+    private readonly schema: Schema;
 
-    constructor(filePath: string) {
+    constructor(filePath: string, schema: Schema = {}) {
         this.filePath = filePath;
+        this.schema = schema;
         this.data = this.loadData();
+        this.validateSchema();
     }
 
     private loadData(): Database {
@@ -33,25 +40,16 @@ class NitroDB {
         fs.writeFileSync(this.filePath, '{}', 'utf8');
     }
 
-    public set(key: string, value: any): void {
-        const keys = key.split('.');
-        let currentObj = this.data;
-
-        // Traverse the keys to find the correct nested object
-        for (let i = 0; i < keys.length - 1; i++) {
-            const currentKey = keys[i];
-            if (!currentObj[currentKey]) {
-                // If the nested object doesn't exist, create it
-                currentObj[currentKey] = {};
+    private validateSchema(): void {
+        for (const key in this.schema) {
+            if (!this.data[key]) {
+                this.data[key] = this.schema[key];
             }
-            currentObj = currentObj[currentKey];
         }
+    }
 
-        // Set the value in the final nested object
-        const finalKey = keys[keys.length - 1];
-        currentObj[finalKey] = value;
-
-        // Save the updated data to the file
+    public set(key: string, value: any): void {
+        this.data[key] = value;
         this.saveData();
     }
 
@@ -85,29 +83,24 @@ class NitroDB {
         }
     }
 
+    public backup(backupFilePath: string): void {
+        const backupData = JSON.stringify(this.data, null, 2);
+        fs.writeFileSync(backupFilePath, backupData, 'utf8');
+    }
+
+    public restore(backupFilePath: string): void {
+        try {
+            const backupData = fs.readFileSync(backupFilePath, 'utf8');
+            this.data = JSON.parse(backupData);
+            this.saveData();
+        } catch (error) {
+            throw new Error(`Error restoring backup: ${error}`);
+        }
+    }
+
     private saveData(): void {
         const dataToWrite = JSON.stringify(this.data, null, 2);
         fs.writeFileSync(this.filePath, dataToWrite, 'utf8');
     }
 }
-/**
-// Example usage:
-const dbFilePath = path.resolve(__dirname, 'users.database');
-const db = new NitroDB(dbFilePath);
 
-// Set initial user data
-db.set('12345678910', { xp: 0, coins: 0, loves: [] });
-db.set('9876543210', { xp: 10, coins: 100, loves: ['bird'] });
-
-// Query for users with more than 50 coins
-const richUsers = db.query(data => data.coins > 50);
-console.log('Rich users:', richUsers);
-
-// Transaction example: Increment XP for all users
-db.transaction(() => {
-    const users = db.query(() => true);
-    users.forEach(user => {
-        db.set(user.key + '.xp', user.value.xp + 1);
-    });
-});
-**/

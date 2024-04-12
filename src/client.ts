@@ -37,24 +37,43 @@ class NitroDB extends EventEmitter {
     }
     // Event System
     public on(event: string, listener: (...args: any[]) => void): this {
-        super.on(event, listener);
-        return this;
+    if (!this.events[event]) {
+        this.events[event] = [];
     }
+    this.events[event].push(listener);
+    return this;
+}
 
-    public emit(event: string, ...args: any[]): boolean {
-        return super.emit(event, ...args);
-    }
+
+public emit(event: string, ...args: any[]): void {
+    if (!this.events[event]) return;
+    this.events[event].forEach((listener) => listener(...args));
+}
 
     // Custom Serialization
     public serialize(data: any): string {
-        // Implement custom serialization logic here
-        return JSON.stringify(data);
+    // Implement custom serialization logic here
+    let serializedData = '';
+    if (typeof data === 'object') {
+        serializedData = JSON.stringify(data);
+    } else {
+        serializedData = String(data);
     }
+    return serializedData;
+}
 
-    public deserialize(data: string): any {
-        // Implement custom deserialization logic here
-        return JSON.parse(data);
+public deserialize(data: string): any {
+    // Implement custom deserialization logic here
+    let deserializedData: any;
+    try {
+        deserializedData = JSON.parse(data);
+    } catch (error) {
+        // Handle deserialization errors
+        throw new Error(`Error deserializing data: ${error}`);
     }
+    return deserializedData;
+}
+
 
     private loadData(): Database {
         try {

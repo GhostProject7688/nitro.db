@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import winston from 'winston';
+import EventEmitter from 'events';
 
 interface Database {
     [key: string]: any;
@@ -9,14 +10,14 @@ interface Database {
 interface Schema {
     [key: string]: any;
 }
-
-class NitroDB {
+class NitroDB extends EventEmitter {
     private readonly filePath: string;
     private data: Database;
     private readonly schema: Schema;
     private logger: winston.Logger;
 
     constructor(filePath: string, schema: Schema = {}) {
+        super();
         this.filePath = filePath;
         this.schema = schema;
         this.data = this.loadData();
@@ -34,11 +35,31 @@ class NitroDB {
             ]
         });
     }
+    // Event System
+    public on(event: string, listener: (...args: any[]) => void): this {
+        super.on(event, listener);
+        return this;
+    }
+
+    public emit(event: string, ...args: any[]): boolean {
+        return super.emit(event, ...args);
+    }
+
+    // Custom Serialization
+    public serialize(data: any): string {
+        // Implement custom serialization logic here
+        return JSON.stringify(data);
+    }
+
+    public deserialize(data: string): any {
+        // Implement custom deserialization logic here
+        return JSON.parse(data);
+    }
 
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');
-            return JSON.parse(data);
+            return this.deserialize(data);
         } catch (error) {
             if (error.code === 'ENOENT') {
                 this.createEmptyFile();
@@ -137,7 +158,7 @@ class NitroDB {
 
     private saveData(): void {
         try {
-            const dataToWrite = JSON.stringify(this.data, null, 2);
+            const dataToWrite = this.serialize(this.data);
             fs.writeFileSync(this.filePath, dataToWrite, 'utf8');
         } catch (error) {
             this.logger.error(`Error saving data to file: ${error}`);

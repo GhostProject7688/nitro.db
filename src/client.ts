@@ -31,6 +31,7 @@ class NitroDB extends EventEmitter {
         this.validateSchema();
         this.encryptionKey = encryptionKey;
         this.cache = new Map();
+        this.archiveData();
 
         this.logger = winston.createLogger({
             level: 'error',
@@ -83,7 +84,16 @@ class NitroDB extends EventEmitter {
         }
         return deserializedData;
     }
-
+private archiveData(): void {
+        const archiveDir = path.join(path.dirname(this.filePath), 'archive');
+        if (!fs.existsSync(archiveDir)) {
+            fs.mkdirSync(archiveDir);
+        }
+        const timestamp = new Date().toISOString().replace(/:/g, '-'); // Replace colons with dashes
+        const archiveFilePath = path.join(archiveDir, `data_${timestamp}.json`);
+        fs.copyFileSync(this.filePath, archiveFilePath);
+        this.logger.info(`Archived data to: ${archiveFilePath}`);
+    }
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');

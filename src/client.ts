@@ -3,6 +3,7 @@ import * as path from 'path';
 import winston from 'winston';
 import EventEmitter from 'events';
 import { Database, Schema } from './interface.js';
+import crypto from 'crypto';
 
 interface VersionedData {
     version: number;
@@ -15,15 +16,17 @@ class NitroDB extends EventEmitter {
     private data: Database;
     private readonly schema: Schema;
     private logger: winston.Logger;
+    private readonly encryptionKey: string; // Add encryption key
 
-    constructor(filePath: string, schema: Schema = {}) {
+    constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
         this.filePath = filePath;
         this.schema = schema;
         this.version = 1; // Initial version
         this.data = this.loadData();
         this.validateSchema();
-
+        this.encryptionKey = encryptionKey;
+        
         this.logger = winston.createLogger({
             level: 'error',
             format: winston.format.combine(
@@ -78,7 +81,8 @@ class NitroDB extends EventEmitter {
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');
-            const versionedData: VersionedData = JSON.parse(data);
+            const decryptedData = this.decryptData(data); // Decrypt the data
+            const versionedData: VersionedData = JSON.parse(decryptedData);
             this.version = versionedData.version;
             return versionedData.data;
         } catch (error) {
@@ -97,7 +101,9 @@ class NitroDB extends EventEmitter {
             version: this.version,
             data: {}
         };
-        fs.writeFileSync(this.filePath, JSON.stringify(initialData), 'utf8');
+        const serializedData = JSON.stringify(initialData);
+        const encryptedData = this.encryptData(serializedData); // Encrypt the initial data
+        fs.writeFileSync(this.filePath, encryptedData, 'utf8');
     }
 
     private validateSchema(): void {
@@ -181,18 +187,35 @@ class NitroDB extends EventEmitter {
         }
     }
 
-    private saveData(): void {
+ private saveData(): void {
         const versionedData: VersionedData = {
             version: this.version,
             data: this.data
         };
+        const serializedData = JSON.stringify(versionedData);
+        const encryptedData = this.encryptData(serializedData); // Encrypt the data before saving
         try {
-            fs.writeFileSync(this.filePath, JSON.stringify(versionedData), 'utf8');
+            fs.writeFileSync(this.filePath, encryptedData, 'utf8');
         } catch (error) {
             this.logger.error(`Error saving data to file: ${error}`);
             throw new Error(`Error saving data to file: ${error}`);
         }
     }
+
+    private encryptData(data: string): string {
+        const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+        let encryptedData = cipher.update(data, 'utf8', 'hex');
+        encryptedData += cipher.final('hex');
+        return encryptedData;
+    }
+
+    private decryptData(data: string): string {
+        const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
+        let decryptedData = decipher.update(data, 'hex', 'utf8');
+        decryptedData += decipher.final('utf8');
+        return decryptedData;
+    }
+}
 
     // Versioning feature
     public getVersion(): number {

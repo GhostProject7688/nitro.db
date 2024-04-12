@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import winston from 'winston';
 
 interface Database {
     [key: string]: any;
@@ -33,6 +34,7 @@ class NitroDB {
             ]
         });
     }
+
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');
@@ -62,6 +64,14 @@ class NitroDB {
 
     public set(key: string, value: any): void {
         this.data[key] = value;
+        this.saveData();
+    }
+
+    public push(key: string, value: any): void {
+        if (!Array.isArray(this.data[key])) {
+            this.data[key] = [];
+        }
+        this.data[key].push(value);
         this.saveData();
     }
 
@@ -120,4 +130,5 @@ class NitroDB {
         }
     }
 }
+
 export default NitroDB;

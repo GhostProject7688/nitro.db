@@ -120,6 +120,21 @@ class NitroDB {
         }
     }
 
+    public has(key: string): boolean {
+        return this.data.hasOwnProperty(key);
+    }
+
+    public toJSON(): string {
+        return JSON.stringify(this.data, null, 2);
+    }
+
+    public resetval(key: string): void {
+        if (this.data.hasOwnProperty(key)) {
+            delete this.data[key];
+            this.saveData();
+        }
+    }
+
     private saveData(): void {
         try {
             const dataToWrite = JSON.stringify(this.data, null, 2);

@@ -26,7 +26,7 @@ class NitroDB extends EventEmitter {
         this.data = this.loadData();
         this.validateSchema();
         this.encryptionKey = encryptionKey;
-        
+
         this.logger = winston.createLogger({
             level: 'error',
             format: winston.format.combine(
@@ -115,9 +115,12 @@ class NitroDB extends EventEmitter {
     }
 
     public set(key: string, value: any): void {
-        this.data[key] = value;
-        this.saveData();
-    }
+    const oldValue = this.data[key];
+    this.emit('beforeSet', key, value);
+    this.data[key] = value;
+    this.emit('afterSet', key, value, oldValue);
+    this.saveData();
+}
 
     public push(key: string, value: any): void {
         if (!Array.isArray(this.data[key])) {
@@ -187,7 +190,7 @@ class NitroDB extends EventEmitter {
         }
     }
 
- private saveData(): void {
+    private saveData(): void {
         const versionedData: VersionedData = {
             version: this.version,
             data: this.data
@@ -215,7 +218,6 @@ class NitroDB extends EventEmitter {
         decryptedData += decipher.final('utf8');
         return decryptedData;
     }
-}
 
     // Versioning feature
     public getVersion(): number {
@@ -225,6 +227,24 @@ class NitroDB extends EventEmitter {
     public updateVersion(newVersion: number): void {
         this.version = newVersion;
         this.saveData(); // Save the version along with the data
+    }
+
+    // Custom Hooks
+    public beforeSet(callback: (key: string, value: any) => void): void {
+    this.on('beforeSet', callback);
+}
+
+public afterSet(callback: (key: string, value: any) => void): void {
+    this.on('afterSet', callback);
+}
+
+    // Query Optimization
+    public optimizeQuery(criteria: (data: any) => boolean): any[] {
+        // Implement query optimization logic here
+        // For example, using indexes or other data structures to speed up queries
+        const results: any[] = [];
+        this.traverse(this.data, results, criteria);
+        return results;
     }
 }
 

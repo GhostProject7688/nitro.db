@@ -2,14 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import winston from 'winston';
 import EventEmitter from 'events';
+import { Database, Schema } from './interface.js';
 
-interface Database {
-    [key: string]: any;
-}
-
-interface Schema {
-    [key: string]: any;
-}
 class NitroDB extends EventEmitter {
     private readonly filePath: string;
     private data: Database;

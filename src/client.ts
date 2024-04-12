@@ -113,12 +113,19 @@ class NitroDB extends EventEmitter {
     }
 
     private validateSchema(): void {
-        for (const key in this.schema) {
-            if (!this.data[key]) {
-                this.data[key] = this.schema[key];
+    for (const key in this.schema) {
+        if (!this.data.hasOwnProperty(key)) {
+            if (this.schema[key].hasOwnProperty('default')) {
+                this.data[key] = this.schema[key].default;
+            } else if (!this.schema[key].required) {
+                this.data[key] = null; // Or any appropriate default value
+            } else {
+                throw new Error(`Required key '${key}' missing in database.`);
             }
         }
     }
+}
+
 
     public set(key: string, value: any): void {
         const oldValue = this.data[key];

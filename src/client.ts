@@ -4,8 +4,14 @@ import winston from 'winston';
 import EventEmitter from 'events';
 import { Database, Schema } from './interface.js';
 
+interface VersionedData {
+    version: number;
+    data: Database;
+}
+
 class NitroDB extends EventEmitter {
     private readonly filePath: string;
+    private version: number;
     private data: Database;
     private readonly schema: Schema;
     private logger: winston.Logger;
@@ -14,6 +20,7 @@ class NitroDB extends EventEmitter {
         super();
         this.filePath = filePath;
         this.schema = schema;
+        this.version = 1; // Initial version
         this.data = this.loadData();
         this.validateSchema();
 
@@ -29,50 +36,51 @@ class NitroDB extends EventEmitter {
             ]
         });
     }
+
     // Event System
     public on(event: string, listener: (...args: any[]) => void): this {
-    if (!this.events[event]) {
-        this.events[event] = [];
+        if (!this.events[event]) {
+            this.events[event] = [];
+        }
+        this.events[event].push(listener);
+        return this;
     }
-    this.events[event].push(listener);
-    return this;
-}
 
-
-public emit(event: string, ...args: any[]): void {
-    if (!this.events[event]) return;
-    this.events[event].forEach((listener) => listener(...args));
-}
+    public emit(event: string, ...args: any[]): void {
+        if (!this.events[event]) return;
+        this.events[event].forEach((listener) => listener(...args));
+    }
 
     // Custom Serialization
     public serialize(data: any): string {
-    // Implement custom serialization logic here
-    let serializedData = '';
-    if (typeof data === 'object') {
-        serializedData = JSON.stringify(data);
-    } else {
-        serializedData = String(data);
+        // Implement custom serialization logic here
+        let serializedData = '';
+        if (typeof data === 'object') {
+            serializedData = JSON.stringify(data);
+        } else {
+            serializedData = String(data);
+        }
+        return serializedData;
     }
-    return serializedData;
-}
 
-public deserialize(data: string): any {
-    // Implement custom deserialization logic here
-    let deserializedData: any;
-    try {
-        deserializedData = JSON.parse(data);
-    } catch (error) {
-        // Handle deserialization errors
-        throw new Error(`Error deserializing data: ${error}`);
+    public deserialize(data: string): any {
+        // Implement custom deserialization logic here
+        let deserializedData: any;
+        try {
+            deserializedData = JSON.parse(data);
+        } catch (error) {
+            // Handle deserialization errors
+            throw new Error(`Error deserializing data: ${error}`);
+        }
+        return deserializedData;
     }
-    return deserializedData;
-}
-
 
     private loadData(): Database {
         try {
             const data = fs.readFileSync(this.filePath, 'utf8');
-            return this.deserialize(data);
+            const versionedData: VersionedData = JSON.parse(data);
+            this.version = versionedData.version;
+            return versionedData.data;
         } catch (error) {
             if (error.code === 'ENOENT') {
                 this.createEmptyFile();
@@ -85,7 +93,11 @@ public deserialize(data: string): any {
     }
 
     private createEmptyFile(): void {
-        fs.writeFileSync(this.filePath, '{}', 'utf8');
+        const initialData: VersionedData = {
+            version: this.version,
+            data: {}
+        };
+        fs.writeFileSync(this.filePath, JSON.stringify(initialData), 'utf8');
     }
 
     private validateSchema(): void {
@@ -170,13 +182,26 @@ public deserialize(data: string): any {
     }
 
     private saveData(): void {
+        const versionedData: VersionedData = {
+            version: this.version,
+            data: this.data
+        };
         try {
-            const dataToWrite = this.serialize(this.data);
-            fs.writeFileSync(this.filePath, dataToWrite, 'utf8');
+            fs.writeFileSync(this.filePath, JSON.stringify(versionedData), 'utf8');
         } catch (error) {
             this.logger.error(`Error saving data to file: ${error}`);
             throw new Error(`Error saving data to file: ${error}`);
         }
+    }
+
+    // Versioning feature
+    public getVersion(): number {
+        return this.version;
+    }
+
+    public updateVersion(newVersion: number): void {
+        this.version = newVersion;
+        this.saveData(); // Save the version along with the data
     }
 }
 

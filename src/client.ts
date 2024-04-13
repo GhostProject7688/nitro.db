@@ -22,8 +22,9 @@ class NitroDB extends EventEmitter {
     private readonly schema: Schema;
     private readonly encryptionKey: string; // Add encryption key
     private cache: Map<string, any>; // Cache for frequently accessed data
-      private geoIndexes: Map<string, Map<string, string[]>>; // Geo Indexes for geospatial data
+    private geoIndexes: Map<string, Map<string, string[]>>; // Geo Indexes for geospatial data
     private indexes: Map<string, Index>; // Indexes for frequently accessed fields
+    private events: { [key: string]: ((...args: any[]) => void)[] } = {}; // Event listeners
        constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
         if (!encryptionKey || typeof encryptionKey !== 'string') {
@@ -50,9 +51,10 @@ class NitroDB extends EventEmitter {
         return this;
     }
 
-    public emit(event: string, ...args: any[]): void {
-        if (!this.events[event]) return;
+    public emit(event: string, ...args: any[]): boolean {
+        if (!this.events[event]) return false;
         this.events[event].forEach((listener) => listener(...args));
+        return true;
     }
     public createGeoIndex(field: string): void {
         if (!this.geoIndexes.has(field)) {
@@ -87,7 +89,8 @@ class NitroDB extends EventEmitter {
         }
         return serializedData;
     }
-   private createIndex(field: string): void {
+
+    private createIndex(field: string): void {
         if (!this.indexes.has(field)) {
             this.indexes.set(field, { field, values: new Map() });
             const index = this.indexes.get(field)!;
@@ -102,7 +105,6 @@ class NitroDB extends EventEmitter {
             }
         }
     }
-
     public queryIndexed(field: string, value: any): string[] | undefined {
         if (this.indexes.has(field)) {
             const index = this.indexes.get(field)!;
@@ -141,7 +143,7 @@ private archiveData(): void {
             this.version = versionedData.version;
             return versionedData.data;
         } catch (error) {
-            if (error.code === 'ENOENT') {
+            if ((error as any).code === 'ENOENT') {
                 this.createEmptyFile();
                 return {};
             } else {
@@ -149,7 +151,6 @@ private archiveData(): void {
             }
         }
     }
-
     private createEmptyFile(): void {
         const initialData: VersionedData = {
             version: this.version,
@@ -161,19 +162,18 @@ private archiveData(): void {
     }
 
     private validateSchema(): void {
-    for (const key in this.schema) {
-        if (!this.data.hasOwnProperty(key)) {
-            if (this.schema[key].hasOwnProperty('default')) {
-                this.data[key] = this.schema[key].default;
-            } else if (!this.schema[key].required) {
-                this.data[key] = null; // Or any appropriate default value
-            } else {
-                throw new Error(`Required key '${key}' missing in database.`);
+        for (const key in this.schema) {
+            if (!this.data.hasOwnProperty(key)) {
+                if (this.schema[key].hasOwnProperty('default')) {
+                    this.data[key] = this.schema[key].default;
+                } else if (!this.schema[key].required) {
+                    this.data[key] = null; // Or any appropriate default value
+                } else {
+                    throw new Error(`Required key '${key}' missing in database.`);
+                }
             }
         }
     }
-}
-
 
     public set(key: string, value: any): void {
         const oldValue = this.data[key];
@@ -271,7 +271,7 @@ private archiveData(): void {
         encryptedData += cipher.final('hex');
         return encryptedData;
     }
-    
+
     private decryptData(data: string): string {
         const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
         let decryptedData = decipher.update(data, 'hex', 'utf8');

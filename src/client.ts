@@ -22,6 +22,7 @@ class NitroDB extends EventEmitter {
     private readonly schema: Schema;
     private readonly encryptionKey: string; // Add encryption key
     private cache: Map<string, any>; // Cache for frequently accessed data
+      private geoIndexes: Map<string, Map<string, string[]>>; // Geo Indexes for geospatial data
     private indexes: Map<string, Index>; // Indexes for frequently accessed fields
        constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
@@ -35,6 +36,7 @@ class NitroDB extends EventEmitter {
         this.validateSchema();
         this.encryptionKey = encryptionKey;
         this.cache = new Map();
+           this.geoIndexes = new Map(); // Initialize geoIndexes map
         this.archiveData();
          this.indexes = new Map();
     }
@@ -52,7 +54,28 @@ class NitroDB extends EventEmitter {
         if (!this.events[event]) return;
         this.events[event].forEach((listener) => listener(...args));
     }
+    public createGeoIndex(field: string): void {
+        if (!this.geoIndexes.has(field)) {
+            this.geoIndexes.set(field, new Map());
+            const geoIndex = this.geoIndexes.get(field)!;
+            for (const key in this.data) {
+                const location = this.data[key][field];
+                if (location) {
+                    const keyList = geoIndex.get(location) || [];
+                    keyList.push(key);
+                    geoIndex.set(location, keyList);
+                }
+            }
+        }
+    }
 
+    public queryGeoIndex(field: string, location: string): string[] | undefined {
+        if (this.geoIndexes.has(field)) {
+            const geoIndex = this.geoIndexes.get(field)!;
+            return geoIndex.get(location);
+        }
+        return undefined;
+    }
     // Custom Serialization
     public serialize(data: any): string {
         // Implement custom serialization logic here

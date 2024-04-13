@@ -1,3 +1,11 @@
+# message By GhostDev
+i have to update With new feature and after Stable will realase on Npmjs
+this db will have over 100 distinct features and functionalities be final update :)
+one file has 300 Line need to reduce
+ # plan
+ soon will add type and reduce file line
+ 
+
 # nitro.db feature 
 The provided code for the `NitroDB` class includes several features and functionalities. Here's a breakdown:
 

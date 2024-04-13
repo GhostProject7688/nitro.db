@@ -3,12 +3,16 @@ import * as path from 'path';
 import winston from 'winston';
 import EventEmitter from 'events';
 import { Database, Schema } from './interface.js';
-import logger from './logger.js';
 import crypto from 'crypto';
 
 interface VersionedData {
     version: number;
     data: Database;
+}
+
+interface Index {
+    field: string;
+    values: Map<any, Set<string>>;
 }
 
 class NitroDB extends EventEmitter {
@@ -18,7 +22,7 @@ class NitroDB extends EventEmitter {
     private readonly schema: Schema;
     private readonly encryptionKey: string; // Add encryption key
     private cache: Map<string, any>; // Cache for frequently accessed data
-
+    private indexes: Map<string, Index>; // Indexes for frequently accessed fields
        constructor(filePath: string, schema: Schema = {}, encryptionKey: string) {
         super();
         if (!encryptionKey || typeof encryptionKey !== 'string') {
@@ -32,7 +36,7 @@ class NitroDB extends EventEmitter {
         this.encryptionKey = encryptionKey;
         this.cache = new Map();
         this.archiveData();
-        this.logger = logger;
+         this.indexes = new Map();
     }
 
     // Event System
@@ -60,7 +64,31 @@ class NitroDB extends EventEmitter {
         }
         return serializedData;
     }
+   private createIndex(field: string): void {
+        if (!this.indexes.has(field)) {
+            this.indexes.set(field, { field, values: new Map() });
+            const index = this.indexes.get(field)!;
+            for (const key in this.data) {
+                const value = this.data[key][field];
+                if (value !== undefined) {
+                    if (!index.values.has(value)) {
+                        index.values.set(value, new Set());
+                    }
+                    index.values.get(value)!.add(key);
+                }
+            }
+        }
+    }
 
+    public queryIndexed(field: string, value: any): string[] | undefined {
+        if (this.indexes.has(field)) {
+            const index = this.indexes.get(field)!;
+            if (index.values.has(value)) {
+                return Array.from(index.values.get(value)!);
+            }
+        }
+        return undefined;
+    }
     public deserialize(data: string): any {
         // Implement custom deserialization logic here
         let deserializedData: any;
@@ -80,7 +108,7 @@ private archiveData(): void {
         const timestamp = new Date().toISOString().replace(/:/g, '-'); // Replace colons with dashes
         const archiveFilePath = path.join(archiveDir, `data_${timestamp}.json`);
         fs.copyFileSync(this.filePath, archiveFilePath);
-        this.logger.info(`Archived data to: ${archiveFilePath}`);
+        console.info(`Archived data to: ${archiveFilePath}`);
     }
     private loadData(): Database {
         try {
@@ -94,7 +122,6 @@ private archiveData(): void {
                 this.createEmptyFile();
                 return {};
             } else {
-                this.logger.error(`Error loading data from file: ${error}`);
                 throw new Error(`Error loading data from file: ${error}`);
             }
         }
@@ -211,7 +238,6 @@ private archiveData(): void {
         try {
             fs.writeFileSync(this.filePath, encryptedData, 'utf8');
         } catch (error) {
-            this.logger.error(`Error saving data to file: ${error}`);
             throw new Error(`Error saving data to file: ${error}`);
         }
     }

@@ -1,8 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import winston from 'winston';
 import EventEmitter from 'events';
-import { Database, Schema } from './interface.js';
+import import { Database, Schema, TimeSeriesData } from './interface.js';
 import crypto from 'crypto';
 
 interface VersionedData {
@@ -71,6 +70,38 @@ class NitroDB extends EventEmitter {
         }
     }
 
+    public addTimeSeriesData(key: string, timestamp: number, value: any): void {
+        if (!Array.isArray(this.data[key])) {
+            this.data[key] = [];
+        }
+        this.data[key].push({ timestamp, value });
+        this.saveData();
+    }
+
+    public queryTimeSeriesData(key: string, startTime: number, endTime: number): TimeSeriesData[] {
+        const timeSeriesData = this.data[key];
+        if (!timeSeriesData) return [];
+        return timeSeriesData.filter(data => data.timestamp >= startTime && data.timestamp <= endTime);
+    }
+
+    public aggregateTimeSeriesData(key: string, interval: number): { timestamp: number, value: any }[] {
+        const timeSeriesData = this.data[key];
+        if (!timeSeriesData) return [];
+        const aggregatedData: { timestamp: number, value: any }[] = [];
+        const intervalMillis = interval * 1000; // Convert seconds to milliseconds
+        const startTime = timeSeriesData[0].timestamp;
+        const endTime = timeSeriesData[timeSeriesData.length - 1].timestamp;
+        for (let t = startTime; t <= endTime; t += intervalMillis) {
+            const intervalData = timeSeriesData.filter(data => data.timestamp >= t && data.timestamp < t + intervalMillis);
+            if (intervalData.length > 0) {
+                const sum = intervalData.reduce((acc, curr) => acc + curr.value, 0);
+                const average = sum / intervalData.length;
+                aggregatedData.push({ timestamp: t, value: average });
+            }
+        }
+        return aggregatedData;
+    }
+    
     public queryGeoIndex(field: string, location: string): string[] | undefined {
         if (this.geoIndexes.has(field)) {
             const geoIndex = this.geoIndexes.get(field)!;

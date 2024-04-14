@@ -2,7 +2,7 @@ Certainly! Here's a list demonstrating how to use each feature of the NitroDB cl
 
 1. **Initialization:**
    ```typescript
-   import NitroDB from './NitroDB'; // Import the NitroDB class
+   import GhostDB from 'ghost.database'; // Import the NitroDB class
 
    // Initialize NitroDB with file path, schema, and encryption key
    const db = new NitroDB('/path/to/database.json', { /* schema */ }, 'encryptionKey');

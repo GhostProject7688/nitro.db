@@ -1,0 +1,37 @@
+{
+  "name": "@ghost/nitro.db",
+  "version": "0.0.6",
+  "description": "nitro db is A simple and flexible Node.js database module for managing user data with support for setting, adding, removing values, and array operations",
+  "main": "./dist/index.js",
+  "type": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build --verbose"
+  },
+  "keywords": [
+    "db",
+    "nitro.db",
+    "nitrodb",
+    "nitrodb_database",
+    "GhostDev",
+    "database",
+    "nodejs",
+    "data management"
+  ],
+  "author": "GhostDev13",
+  "license": "ISC",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "events": "^3.3.0",
+    "fs": "^0.0.1-security",
+    "node": "^18.20.2",
+    "node-gyp": "^10.1.0",
+    "path": "^0.12.7",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5"
+  }
+}

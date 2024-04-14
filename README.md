@@ -4,6 +4,8 @@ this db will have over 100 distinct features and functionalities be final update
 one file has 300 Line need to reduce
  # plan
  soon will add type and reduce file line
+ # How to use?
+ open [setup](https://github.com/GhostProject7688/nitro.db/blob/main/example/docs.md)
  
 
 # nitro.db feature 
